@@ -16,56 +16,43 @@ from Arena import ArenaSingle, ArenaTest
 from MCTS import MCTS
 
 class Coach():
-    """
-    This class executes the self-play + learning. It uses the functions defined
-    in Game and NeuralNet. args are specified in main.py.
-    """
+    # 本类执行自我对弈 + 学习过程。它使用 Game 和 NeuralNet 中定义的函数。
+    # 参数 args 在 main.py 中指定。
 
     def __init__(self, game, nnet, args, player=2):
         self.game = game
         self.nnet = nnet
-        self.pnet = self.nnet.__class__(self.game)  # the competitor network
+        self.pnet = self.nnet.__class__(self.game)  # 竞争者网络(旧网络)
         self.args = args
         self.player = player
         self.mcts = MCTS(self.game, self.nnet, self.args, self.player)
-        self.trainExamplesHistory = []  # history of examples from args.numItersForTrainExamplesHistory latest iterations
-        self.skipFirstSelfPlay = False  # can be overriden in loadTrainExamples()
+        self.trainExamplesHistory = []  # 存储多个迭代中的自我对弈样本
+        self.skipFirstSelfPlay = False  # 可以在loadTrainExamples()中重写
         self.multi_sol = args.multi_sol
         self.multi_times = args.multi_times
 
     def executeEpisode(self):
-        """
-        This function executes one episode of self-play, starting with player 1.
-        As the game is played, each turn is added as a training example to
-        trainExamples. The game is played till the game ends. After the game
-        ends, the outcome of the game is used to assign values to each example
-        in trainExamples.
-
-        It uses a temp=1 if episodeStep < tempThreshold, and thereafter
-        uses temp=0.
-
-        Returns:
-            trainExamples: a list of examples of the form (canonicalBoard, currPlayer, pi,v)
-                           pi is the MCTS informed policy vector, v is +1 if
-                           the player eventually won the game, else -1.
-        """
+         # 本函数执行一次自我对弈回合，从玩家1开始。
+         # 游戏进行过程中，每一步都会作为一个训练样例加入到 trainExamples 中。
+         # 游戏结束后，根据游戏结果给每个样例分配值。
+         # 如果 episodeStep < tempThreshold 使用 temp=1，之后使用 temp=0。
+         # 返回：
+         #     trainExamples: 示例列表，形式为 (canonicalBoard, currPlayer, pi, v)
+         #         pi 是 MCTS 得出的策略向量，v 是如果玩家最终胜利则为 +1，
+         #         否则为 -1。
         trainExamples = []
-        board = self.game.getInitBoard()
-        self.curPlayer = 1
-        episodeStep = 0
-        rewards = [0]
-
-        while True:
-            
+        board = self.game.getInitBoard() # [1, 3, 4, 5]
+        self.curPlayer = 1 # 当前玩家初始化为 1
+        episodeStep = 0 # 当前回合步数
+        rewards = [0] # 奖励列表，初始为 0
+        # 进行游戏
+        while True:            
             canonicalBoard = self.game.getCanonicalForm(board, self.curPlayer) if self.player == 2 else board
-            temp = int(episodeStep < self.args.tempThreshold)
-
+            temp = int(episodeStep < self.args.tempThreshold) # 早期保留探索性(1) 后期选择 MCTS 中最高概率的动作
             pi = self.mcts.getActionProb(canonicalBoard, temp=temp, step=episodeStep)
-
             sym = self.game.getSymmetries(canonicalBoard, pi)
             for b, p in sym:
                 trainExamples.append([b, self.curPlayer, p, None])
-
             action = np.random.choice(len(pi), p=pi)
             if self.player == 2:
                 board, self.curPlayer = self.game.getNextState(board, self.curPlayer, action)
@@ -73,72 +60,52 @@ class Coach():
             else:
                 board, self.curPlayer = self.game.getNextState(board, action)
                 r = self.game.getGameEnded(board)
-
             rewards.append(r)
-
             episodeStep += 1
             terminate = self.game.isTerminate(board, episodeStep)
             if terminate:
                 sym = self.game.getSymmetries(board, pi)
                 for b, p in sym:
                     trainExamples.append([b, self.curPlayer, p, None])
-                # if r == 1:
-                #     for i, x in enumerate(trainExamples):
-                #         _, v = self.nnet.predict(x[0])
-                #         print(x[0], sum(rewards[i:]), v)
                 return [(x[0], x[2], sum(rewards[i:])) for i, x in enumerate(trainExamples)]
 
 
     def learn(self):
-        """
-        Performs numIters iterations with numEps episodes of self-play in each
-        iteration. After every iteration, it retrains neural network with
-        examples in trainExamples (which has a maximum length of maxlenofQueue).
-        It then pits the new neural network against the old one and accepts it
-        only if it wins >= updateThreshold fraction of games.
-        """
-
+        # 执行 numIters(3) 次迭代，每次迭代包含 numEps 场自我对弈。
+        # 每次迭代后，使用 trainExamples 中的样例重新训练神经网络（最大长度 maxlenOfQueue）。
+        # 然后将新神经网络与旧版本对战，只有当胜率 >= updateThreshold 时才接受新模型。
         for i in range(1, self.args.numIters + 1):
             # bookkeeping
             logging.info(f'Starting Iter #{i} ...')
             # examples of the iteration
             if not self.skipFirstSelfPlay or i > 1:
                 iterationTrainExamples = deque([], maxlen=self.args.maxlenOfQueue)
-
                 for _ in tqdm(range(self.args.numEps), desc="Self Play"):
                     self.mcts = MCTS(self.game, self.nnet, self.args, self.player)  # reset search tree
                     iterationTrainExamples += self.executeEpisode()
-
                 # save the iteration examples to the history 
                 self.trainExamplesHistory.append(iterationTrainExamples)
-
             if len(self.trainExamplesHistory) > self.args.numItersForTrainExamplesHistory:
                 logging.warning(
                     f"Removing the oldest entry in trainExamples. len(trainExamplesHistory) = {len(self.trainExamplesHistory)}")
                 self.trainExamplesHistory.pop(0)
-            # backup history to a file
-            # NB! the examples were collected using the model from the previous iteration, so (i-1)  
+            # 备份历史记录到文件
+            # 注意：这些样例是使用上一轮模型收集的，因此是 i-1
             self.saveTrainExamples(i - 1)
-
-            # shuffle examples before training
+            # 训练前打乱数据
             trainExamples = []
             for e in self.trainExamplesHistory:
                 trainExamples.extend(e)
             shuffle(trainExamples)
-
-            # training new network, keeping a copy of the old one
+            # 训练新网络，并保存旧网络副本
             self.nnet.save_checkpoint(folder=self.args.checkpoint + self.args.env + '/', filename='temp.pth.tar')
             self.pnet.load_checkpoint(folder=self.args.checkpoint + self.args.env + '/', filename='temp.pth.tar')
             pmcts = MCTS(self.game, self.pnet, self.args, self.player)
-
             self.nnet.train(trainExamples)
             nmcts = MCTS(self.game, self.nnet, self.args, self.player)
-
             logging.info('PITTING AGAINST PREVIOUS VERSION')
-        
             pmcts_modelcall_before = pmcts.getModelCall()
             nmcts_modelcall_before = nmcts.getModelCall()
-    
             arena = ArenaSingle(pmcts, nmcts, self.game, self.args.winReward)
             pwins, nwins = arena.playGames(self.args.arenaCompare, verbose=True)
             pmcts_modelcall_after = pmcts.getModelCall()
@@ -149,7 +116,6 @@ class Coach():
 
             logging.info('NEW/PREV WINS : %d / %d, NEW/PREV AVG CALL : %s / %s, ' % (nwins, pwins, nmcts_modelcall_avg, pmcts_modelcall_avg))
 
-            
             if pwins + nwins == 0 or float(nwins - pwins) / self.args.arenaCompare < self.args.updateThreshold:
                 logging.info('REJECTING NEW MODEL')
                 self.nnet.load_checkpoint(folder=self.args.checkpoint + self.args.env + '/', filename='temp.pth.tar')
@@ -160,11 +126,7 @@ class Coach():
 
 
     def infer(self):
-        """
-        Load model and generate thoughts.
-        """
-      
-        # training new network, keeping a copy of the old one
+        # 加载最佳模型
         self.pnet.load_checkpoint(folder=self.args.checkpoint + self.args.env + '/', filename='best.pth.tar')
         pmcts = MCTS(self.game, self.pnet, self.args, self.player)
 
@@ -204,10 +166,10 @@ class Coach():
             if r != "y":
                 sys.exit()
         else:
-            logging.info("File with trainExamples found. Loading it...")
+            logging.info("找到训练样例文件，正在加载...")
             with open(examplesFile, "rb") as f:
                 self.trainExamplesHistory = Unpickler(f).load()
-            logging.info('Loading done!')
+            logging.info('加载完成!')
 
-            # examples based on the model were already collected (loaded)
+            # 这些样例是基于已有模型收集的，跳过首次自我对弈
             self.skipFirstSelfPlay = True

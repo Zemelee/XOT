@@ -13,8 +13,8 @@ from utils import *
 
 def main():
     parser = ArgumentParser("Everything of Thoughts! 🎉")
-    parser.add_argument('--env', type=str)
-    parser.add_argument('--mode', type=str)
+    parser.add_argument('--env', type=str, default='game24')
+    parser.add_argument('--mode', type=str, default='train')
     parser.add_argument('--numIters', type=int, default=3) # Number of iteration.
     parser.add_argument('--numEps', type=int, default=10)  # Number of complete self-play games to simulate during a new iteration.
     parser.add_argument('--updateThreshold', type=float, default=0) # During arena playoff, new neural net will be accepted if threshold or more of games are won.
@@ -28,7 +28,7 @@ def main():
     parser.add_argument('--load_model', type=bool, default=False)
     parser.add_argument('--load_folder_file', type=tuple, default=('/dev/models','best.pth.tar'))
     parser.add_argument('--numItersForTrainExamplesHistory', type=int, default=1000)
-    parser.add_argument('--training_env', type=str, default='')
+    parser.add_argument('--training_env', type=str, default='game24/data/train.csv')
     parser.add_argument('--test_env', type=str, default='')
     parser.add_argument('--multi_sol', type=int, default=0)
     parser.add_argument('--multi_times', type=int, default=500)
@@ -40,39 +40,31 @@ def main():
     if args.env.lower() == 'game24':
         from game24.Game24Game import Game24 as Game
         from game24.pytorch.NNet import NNetWrapper as nn
-    elif args.env.lower() == 'cube':
-        from cube.CubeGame import Cube as Game
-        from cube.pytorch.NNet import NNetWrapper as nn
-    elif args.env.lower() == 'npuzzle':
-        from npuzzle.NPuzzleGame import NPuzzle as Game
-        from npuzzle.pytorch.NNet import NNetWrapper as nn
+    # elif args.env.lower() == 'cube':
+    #     from cube.CubeGame import Cube as Game
+    #     from cube.pytorch.NNet import NNetWrapper as nn
+    # elif args.env.lower() == 'npuzzle':
+    #     from npuzzle.NPuzzleGame import NPuzzle as Game
+    #     from npuzzle.pytorch.NNet import NNetWrapper as nn
     else:
         raise ValueError
-
     logging.info('Loading %s...', Game.__name__)
     g = Game(args.training_env, args.test_env)
-
     logging.info('Loading %s...', nn.__name__)
     nnet = nn(g)
-
-
     if args.mode.lower() == 'train':
         if args.load_model:
             logging.info('Loading checkpoint "%s/%s"...', args.load_folder_file)
             nnet.load_checkpoint(args.load_folder_file[0], args.load_folder_file[1])
         else:
             logging.warning('Not loading a checkpoint!')
-
         logging.info('Loading the Coach...')
         c = Coach(g, nnet, args, player=1)
-
         if args.load_model:
             logging.info("Loading 'trainExamples' from file...")
             c.loadTrainExamples()
         logging.info('Welcome to play %s, Starting the learning process 🎉' % args.env)
-
         c.learn()
-
     elif args.mode.lower() == 'test' and args.checkpoint:
         c = Coach(g, nnet, args, player=1)
         logging.info('Welcome to play %s, Starting the inference process 🎉' % args.env)
@@ -83,3 +75,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# python main.py --env game24 --mode train --training_env game24/data/train.csv --numMCTSSims 5000 --arenaCompare 100 --numEps 10 --numIters 3
+# python main.py --env game24 --mode test      --test_env game24/data/test.csv  --numMCTSSims 2000 --arenaCompare 137 --multi_sol 0
+# python main.py --config config/cube/single_sol/cube_single_xot_laststep0_revised0.yaml  

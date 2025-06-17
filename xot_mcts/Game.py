@@ -3,114 +3,104 @@
 
 class Game():
     """
-    This class specifies the base Game class. To define your own game, subclass
-    this class and implement the functions below. This works when the game is
-    two-player, adversarial and turn-based.
-
-    Use 1 for player1 and -1 for player2.
-
-    See othello/OthelloGame.py for an example implementation.
+    该类定义了游戏的基类。要定义你自己的游戏，继承此类并实现以下函数。
+    此类适用于双人对抗性回合制游戏。
+    使用 1 表示玩家1，-1 表示玩家2。
+    参见 othello/OthelloGame.py 获取具体实现示例。
     """
     def __init__(self):
         pass
 
     def getInitBoard(self):
         """
-        Returns:
-            startBoard: a representation of the board (ideally this is the form
-                        that will be the input to your neural network)
+        返回：
+            startBoard: 对棋盘的一种表示形式（理想情况下是输入到你的神经网络时所使用的格式）
         """
         pass
 
     def getBoardSize(self):
         """
-        Returns:
-            (x,y): a tuple of board dimensions
+        返回(x,y): 一个表示棋盘尺寸的元组
         """
         pass
 
     def getActionSize(self):
         """
-        Returns:
-            actionSize: number of all possible actions
+        返回：
+            actionSize: 所有可能动作的总数
         """
         pass
 
     def getNextState(self, board, player, action):
         """
-        Input:
-            board: current board
-            player: current player (1 or -1)
-            action: action taken by current player
+        输入：
+            board: 当前棋盘状态
+            player: 当前玩家（1 或 -1）
+            action: 当前玩家执行的动作
 
-        Returns:
-            nextBoard: board after applying action
-            nextPlayer: player who plays in the next turn (should be -player)
+        返回：
+            nextBoard: 应用动作之后的新棋盘状态
+            nextPlayer: 下一步轮到的玩家（应为 -player）
         """
         pass
 
     def getValidMoves(self, board, player):
         """
-        Input:
-            board: current board
-            player: current player
+        输入：
+            board: 当前棋盘状态
+            player: 当前玩家
 
-        Returns:
-            validMoves: a binary vector of length self.getActionSize(), 1 for
-                        moves that are valid from the current board and player,
-                        0 for invalid moves
+        返回：
+            validMoves: 一个长度为 self.getActionSize() 的二进制向量，
+                        1 表示当前棋盘和玩家下合法的动作位置，0 表示非法动作
         """
         pass
 
     def getGameEnded(self, board, player):
         """
-        Input:
-            board: current board
-            player: current player (1 or -1)
+        输入：
+            board: 当前棋盘状态
+            player: 当前玩家（1 或 -1）
 
-        Returns:
-            r: 0 if game has not ended. 1 if player won, -1 if player lost,
-               small non-zero value for draw.
-               
+        返回：
+            r: 如果游戏未结束返回 0。如果玩家胜利返回 1，失败返回 -1，
+               平局则返回一个小的非零值。
         """
         pass
 
     def getCanonicalForm(self, board, player):
         """
-        Input:
-            board: current board
-            player: current player (1 or -1)
+        输入：
+            board: 当前棋盘状态
+            player: 当前玩家（1 或 -1）
 
-        Returns:
-            canonicalBoard: returns canonical form of board. The canonical form
-                            should be independent of player. For e.g. in chess,
-                            the canonical form can be chosen to be from the pov
-                            of white. When the player is white, we can return
-                            board as is. When the player is black, we can invert
-                            the colors and return the board.
+        返回：
+            canonicalBoard: 返回棋盘的标准形式。标准形式应该与玩家无关。
+                            例如在国际象棋中，标准形式可以设定为始终以白方视角表示棋盘。
+                            当前玩家是白方时，直接返回原棋盘；
+                            当前玩家是黑方时，可以翻转颜色后返回。
         """
         pass
 
     def getSymmetries(self, board, pi):
         """
-        Input:
-            board: current board
-            pi: policy vector of size self.getActionSize()
+        输入：
+            board: 当前棋盘状态
+            pi: 策略向量，大小为 self.getActionSize()
 
-        Returns:
-            symmForms: a list of [(board,pi)] where each tuple is a symmetrical
-                       form of the board and the corresponding pi vector. This
-                       is used when training the neural network from examples.
+        返回：
+            symmForms: 一个 [(board,pi)] 形式的列表，其中每个元组都是棋盘及其对应的策略向量的一个对称形式。
+                       在使用示例训练神经网络时会用到这个函数。
         """
         pass
 
     def stringRepresentation(self, board):
         """
-        Input:
-            board: current board
+        输入：
+            board: 当前棋盘状态
 
-        Returns:
-            boardString: a quick conversion of board to a string format.
-                         Required by MCTS for hashing.
+        返回：
+            boardString: 将棋盘快速转换为字符串格式。
+                         MCTS 中用于哈希操作。
         """
         pass

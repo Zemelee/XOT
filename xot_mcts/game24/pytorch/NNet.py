@@ -30,8 +30,8 @@ args = dotdict({
 class NNetWrapper(NeuralNet):
     def __init__(self, game):
         self.nnet = onnet(game, args)
-        self.board_size = game.getBoardSize()
-        self.action_size = game.getActionSize()
+        self.board_size = game.getBoardSize() # 4
+        self.action_size = game.getActionSize() # 36
 
         if args.cuda:
             self.nnet.cuda()
@@ -79,20 +79,14 @@ class NNetWrapper(NeuralNet):
                 optimizer.step()
 
     def predict(self, board):
-        """
-        board: np array with board
-        """
-        # timing
-        start = time.time()
-
-        # preparing input
+        # [1, 5, 9, 9]
+        # numpy-->tensor-->cuda
         board = torch.FloatTensor(board.astype(np.float64))
         if args.cuda: board = board.contiguous().cuda()
-        board = board.view(self.board_size)
+        board = board.view(self.board_size) # 改变形状使之能输入进网络(4):(batch_size, channels, height, width)
         self.nnet.eval()
         with torch.no_grad():
-            pi, v = self.nnet(board)
-
+            pi, v = self.nnet(board) # 当前状态下每个可能动作的概率 / 当前玩家在这个状态下的胜率估计（+1大概率赢，-1大概率输）
         # print('PREDICTION TIME TAKEN : {0:03f}'.format(time.time()-start))
         return torch.exp(pi).data.cpu().numpy()[0], v.data.cpu().numpy()[0]
 
