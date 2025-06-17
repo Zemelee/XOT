@@ -40,18 +40,12 @@ def main():
     if args.env.lower() == 'game24':
         from game24.Game24Game import Game24 as Game
         from game24.pytorch.NNet import NNetWrapper as nn
-    # elif args.env.lower() == 'cube':
-    #     from cube.CubeGame import Cube as Game
-    #     from cube.pytorch.NNet import NNetWrapper as nn
-    # elif args.env.lower() == 'npuzzle':
-    #     from npuzzle.NPuzzleGame import NPuzzle as Game
-    #     from npuzzle.pytorch.NNet import NNetWrapper as nn
     else:
         raise ValueError
     logging.info('Loading %s...', Game.__name__)
-    g = Game(args.training_env, args.test_env)
+    g = Game(args.training_env, args.test_env) # 加载游戏动作实例，棋盘等
     logging.info('Loading %s...', nn.__name__)
-    nnet = nn(g)
+    nnet = nn(g) # 加载辅助网络
     if args.mode.lower() == 'train':
         if args.load_model:
             logging.info('Loading checkpoint "%s/%s"...', args.load_folder_file)
@@ -59,7 +53,7 @@ def main():
         else:
             logging.warning('Not loading a checkpoint!')
         logging.info('Loading the Coach...')
-        c = Coach(g, nnet, args, player=1)
+        c = Coach(g, nnet, args, player=1) # c.mcts.getActionProb(mcts.searchSinglePlayer)
         if args.load_model:
             logging.info("Loading 'trainExamples' from file...")
             c.loadTrainExamples()
@@ -76,6 +70,6 @@ def main():
 if __name__ == "__main__":
     main()
 
-# python main.py --env game24 --mode train --training_env game24/data/train.csv --numMCTSSims 5000 --arenaCompare 100 --numEps 10 --numIters 3
-# python main.py --env game24 --mode test      --test_env game24/data/test.csv  --numMCTSSims 2000 --arenaCompare 137 --multi_sol 0
-# python main.py --config config/cube/single_sol/cube_single_xot_laststep0_revised0.yaml  
+# python xot_mcts/main.py --env game24 --mode train --training_env game24/data/train.csv --numMCTSSims 5000 --arenaCompare 100 --numEps 10 --numIters 3
+# python xot_mcts/main.py --env game24 --mode test --test_env game24/data/test.csv  --numMCTSSims 2000 --arenaCompare 137 --multi_sol 0
+# python xot_mcts/main.py --config config/cube/single_sol/cube_single_xot_laststep0_revised0.yaml  

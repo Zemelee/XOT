@@ -29,8 +29,6 @@ MASK_VALUE = 0.0001 # 表示“无效”或“已使用”的位置
 action_ = ['+','-','in-','*','/','in/'] # 所有可能的动作
 action_dic = {0: [0, '+', 1], 1: [0, '-', 1], 2: [1, '-', 0], 3: [0, '*', 1], 4: [0, '/', 1], 5: [1, '/', 0], 6: [0, '+', 2], 7: [0, '-', 2], 8: [2, '-', 0], 9: [0, '*', 2], 10: [0, '/', 2], 11: [2, '/', 0], 12: [0, '+', 3], 13: [0, '-', 3], 14: [3, '-', 0], 15: [0, '*', 3], 16: [0, '/', 3], 17: [3, '/', 0], 18: [1, '+', 2], 19: [1, '-', 2], 20: [2, '-', 1], 21: [1, '*', 2], 22: [1, '/', 2], 23: [2, '/', 1], 24: [1, '+', 3], 25: [1, '-', 3], 26: [3, '-', 1], 27: [1, '*', 3], 28: [1, '/', 3], 29: [3, '/', 1], 30: [2, '+', 3], 31: [2, '-', 3], 32: [3, '-', 2], 33: [2, '*', 3], 34: [2, '/', 3], 35: [3, '/', 2]}
 
-
-
 class Game24(Game):
     def __init__(self, train_dir='', test_dir='', game_step=3):
         self.action_size = ACTION_SIZE
@@ -54,6 +52,7 @@ class Game24(Game):
     def getInitBoard(self):
         # return initial board (numpy board)
         if self.train_size > 0:
+            # 随机抽取指定数量的行作为初始棋盘
             choose = self.train_data['Puzzles'].sample(n=1).values
             b = np.array([int(i) for i in choose[0].split(' ')])
         else:
@@ -93,10 +92,11 @@ class Game24(Game):
             result = eval(expression)
         except:
             result = float("inf")
+        # 移除被合并的数字
         remaining = [x for i, x in enumerate(board) if i not in [num1, num2] and x != MASK_VALUE]
-        n1, n2 = board[num1], board[num2]
-        
-        exp_in_text = [str(operator), int(n1)if int(n1)==n1 else n1, int(n2)if int(n2)==n2 else n2]
+        n1, n2 = board[num1], board[num2] # 需要被合并的数字
+        exp_in_text = [str(operator), int(n1) if int(n1)==n1 else n1, int(n2) if int(n2)==n2 else n2]
+        # 合并结果与剩余数字, 再加一个MASK_VALUE --> [1, 3, 8, MASK]排序后
         next_state = sorted([result] + remaining) + [MASK_VALUE] * step
         return np.array(next_state), exp_in_text # 下一个状态 和 当前操作文本描述
         
@@ -130,7 +130,6 @@ class Game24(Game):
         if terminate:
             if np.abs(board[0] - self.target) < 1e-4:
                 reward = 1
-                # print("Get rewards!")
             else:
                 reward = -1
         else:
@@ -152,5 +151,4 @@ class Game24(Game):
         return [(board, pi)]
 
     def stringRepresentation(self, board):
-        # 8x8 numpy array (canonical board)
-        return board.tobytes()
+        return tuple(board.tolist())

@@ -12,6 +12,8 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 
+from game24.Game24Game import Game24
+from game24.pytorch.NNet import NNetWrapper as NN
 from Arena import ArenaSingle, ArenaTest
 from MCTS import MCTS
 
@@ -19,7 +21,7 @@ class Coach():
     # 本类执行自我对弈 + 学习过程。它使用 Game 和 NeuralNet 中定义的函数。
     # 参数 args 在 main.py 中指定。
 
-    def __init__(self, game, nnet, args, player=2):
+    def __init__(self, game:Game24, nnet:NN, args, player=2):
         self.game = game
         self.nnet = nnet
         self.pnet = self.nnet.__class__(self.game)  # 竞争者网络(旧网络)
@@ -28,61 +30,51 @@ class Coach():
         self.mcts = MCTS(self.game, self.nnet, self.args, self.player)
         self.trainExamplesHistory = []  # 存储多个迭代中的自我对弈样本
         self.skipFirstSelfPlay = False  # 可以在loadTrainExamples()中重写
-        self.multi_sol = args.multi_sol
-        self.multi_times = args.multi_times
+        self.multi_sol = args.multi_sol # 0
+        self.multi_times = args.multi_times # 500
 
+    # 执行一次自我对弈回合
     def executeEpisode(self):
-         # 本函数执行一次自我对弈回合，从玩家1开始。
-         # 游戏进行过程中，每一步都会作为一个训练样例加入到 trainExamples 中。
-         # 游戏结束后，根据游戏结果给每个样例分配值。
-         # 如果 episodeStep < tempThreshold 使用 temp=1，之后使用 temp=0。
-         # 返回：
-         #     trainExamples: 示例列表，形式为 (canonicalBoard, currPlayer, pi, v)
-         #         pi 是 MCTS 得出的策略向量，v 是如果玩家最终胜利则为 +1，
-         #         否则为 -1。
-        trainExamples = []
-        board = self.game.getInitBoard() # [1, 3, 4, 5]
-        self.curPlayer = 1 # 当前玩家初始化为 1
+        # 模拟一个完整的游戏过程，在每一步使用 MCTS 获取动作概率分布，并记录下来作为训练数据
+        # 最后根据游戏结果给这些样本分配目标值（胜负），供后续训练神经网络使用
+        trainExamples = [] # 存储训练样本
+        board = self.game.getInitBoard() # [a, b, c, d]
+        self.curPlayer = 1 # 当前玩家
         episodeStep = 0 # 当前回合步数
         rewards = [0] # 奖励列表，初始为 0
         # 进行游戏
-        while True:            
+        while True:
+            # 获取规范化棋盘(双人就翻转，单人使用原棋盘)
             canonicalBoard = self.game.getCanonicalForm(board, self.curPlayer) if self.player == 2 else board
             temp = int(episodeStep < self.args.tempThreshold) # 早期保留探索性(1) 后期选择 MCTS 中最高概率的动作
-            pi = self.mcts.getActionProb(canonicalBoard, temp=temp, step=episodeStep)
-            sym = self.game.getSymmetries(canonicalBoard, pi)
+            pi = self.mcts.getActionProb(canonicalBoard, temp=temp, step=episodeStep) # 获取动作概率分布
+            sym = self.game.getSymmetries(canonicalBoard, pi) # 合并了下
             for b, p in sym:
                 trainExamples.append([b, self.curPlayer, p, None])
+             # 选择动作
             action = np.random.choice(len(pi), p=pi)
-            if self.player == 2:
-                board, self.curPlayer = self.game.getNextState(board, self.curPlayer, action)
-                r = self.game.getGameEnded(board, self.curPlayer)
-            else:
-                board, self.curPlayer = self.game.getNextState(board, action)
-                r = self.game.getGameEnded(board)
+            board, self.curPlayer = self.game.getNextState(board, action)
+            r = self.game.getGameEnded(board)
             rewards.append(r)
             episodeStep += 1
+            # 如果终止，处理剩余数据并返回训练样本
             terminate = self.game.isTerminate(board, episodeStep)
             if terminate:
                 sym = self.game.getSymmetries(board, pi)
                 for b, p in sym:
                     trainExamples.append([b, self.curPlayer, p, None])
+                # (canonicalBoard_x, pi_x, v_x)
                 return [(x[0], x[2], sum(rewards[i:])) for i, x in enumerate(trainExamples)]
 
-
+    # 通过多个迭代来不断改进NN
     def learn(self):
-        # 执行 numIters(3) 次迭代，每次迭代包含 numEps 场自我对弈。
-        # 每次迭代后，使用 trainExamples 中的样例重新训练神经网络（最大长度 maxlenOfQueue）。
-        # 然后将新神经网络与旧版本对战，只有当胜率 >= updateThreshold 时才接受新模型。
         for i in range(1, self.args.numIters + 1):
-            # bookkeeping
             logging.info(f'Starting Iter #{i} ...')
-            # examples of the iteration
             if not self.skipFirstSelfPlay or i > 1:
                 iterationTrainExamples = deque([], maxlen=self.args.maxlenOfQueue)
-                for _ in tqdm(range(self.args.numEps), desc="Self Play"):
+                for _ in tqdm(range(self.args.numEps), desc="Self Play"): # 10场自我对弈
                     self.mcts = MCTS(self.game, self.nnet, self.args, self.player)  # reset search tree
-                    iterationTrainExamples += self.executeEpisode()
+                    iterationTrainExamples += self.executeEpisode() # 最后40个样本: [(abcd)-->res,概率分布,奖励] * 10
                 # save the iteration examples to the history 
                 self.trainExamplesHistory.append(iterationTrainExamples)
             if len(self.trainExamplesHistory) > self.args.numItersForTrainExamplesHistory:
@@ -97,12 +89,14 @@ class Coach():
             for e in self.trainExamplesHistory:
                 trainExamples.extend(e)
             shuffle(trainExamples)
-            # 训练新网络，并保存旧网络副本
+            # 新模型
             self.nnet.save_checkpoint(folder=self.args.checkpoint + self.args.env + '/', filename='temp.pth.tar')
+            # 旧模型
             self.pnet.load_checkpoint(folder=self.args.checkpoint + self.args.env + '/', filename='temp.pth.tar')
             pmcts = MCTS(self.game, self.pnet, self.args, self.player)
             self.nnet.train(trainExamples)
             nmcts = MCTS(self.game, self.nnet, self.args, self.player)
+            # 模型评估
             logging.info('PITTING AGAINST PREVIOUS VERSION')
             pmcts_modelcall_before = pmcts.getModelCall()
             nmcts_modelcall_before = nmcts.getModelCall()
@@ -115,7 +109,7 @@ class Coach():
             nmcts_modelcall_avg = round((nmcts_modelcall_after - nmcts_modelcall_before) / self.args.arenaCompare, 2)
 
             logging.info('NEW/PREV WINS : %d / %d, NEW/PREV AVG CALL : %s / %s, ' % (nwins, pwins, nmcts_modelcall_avg, pmcts_modelcall_avg))
-
+            # 模型选择
             if pwins + nwins == 0 or float(nwins - pwins) / self.args.arenaCompare < self.args.updateThreshold:
                 logging.info('REJECTING NEW MODEL')
                 self.nnet.load_checkpoint(folder=self.args.checkpoint + self.args.env + '/', filename='temp.pth.tar')
@@ -129,18 +123,13 @@ class Coach():
         # 加载最佳模型
         self.pnet.load_checkpoint(folder=self.args.checkpoint + self.args.env + '/', filename='best.pth.tar')
         pmcts = MCTS(self.game, self.pnet, self.args, self.player)
-
         logging.info('TESTING BEGAIN:')
-        
         pmcts_modelcall_before = pmcts.getModelCall()
-   
         arena = ArenaTest(pmcts, self.game, self.multi_sol, self.args.winReward)
         pwins, thoughts_record = arena.playGames(self.args.arenaCompare, self.multi_times, verbose=True)
         pmcts_modelcall_after = pmcts.getModelCall()
-
         pmcts_modelcall_avg = round((pmcts_modelcall_after - pmcts_modelcall_before) / self.args.arenaCompare, 2)
         thoughts_acc = round(pwins/self.game.test_size, 4) * 100
-
         logging.info('TESTING WINS :  %d / %d, THOUGHTS ACC : %d %%, TESTING AVG CALL : %s' % (pwins, self.game.test_size, thoughts_acc, pmcts_modelcall_avg))
         pd_thoughts = pd.DataFrame(data=thoughts_record, columns=['problem_state', 'thoughts', 'acc'])
         pd_thoughts.to_csv('./logs/%s_thoughts.csv'%self.args.env)

@@ -2,8 +2,6 @@
 # Licensed under the MIT license.
 
 class AverageMeter(object):
-    """From https://github.com/pytorch/examples/blob/master/imagenet/main.py"""
-
     def __init__(self):
         self.val = 0
         self.avg = 0

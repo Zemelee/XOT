@@ -17,7 +17,7 @@ param:
   n_generate_sample: 1  
   n_evaluate_sample: None 
   n_select_sample: None 
-  last_step: 1 
+  last_step: 1 # 表示是否包含思考的最后一步 (1) 或不包含 (0)
   
 multi_solution: 0  
   
@@ -26,8 +26,8 @@ xot:
   multi_numMCTSSims: 500  
   multi_solution_exploration: 500 
   
-  revised: 1  
-  revise_times: 1  
+  revised: 1  # 表示是否允许修订 (1) 或不允许 (0)
+  revise_times: 1  # 修订次数
   revise_total_game_step: 3  
   revise_numMCTSSims: 500  
   

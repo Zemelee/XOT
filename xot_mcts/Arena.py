@@ -8,26 +8,20 @@ from tqdm import tqdm
 log = logging.getLogger(__name__)
 
 
+# 竞技场类：用于模拟两个智能体之间的对战（单步决策）
 class ArenaSingle():
-    """
-    An Arena class where any 2 agents can be pit against each other.
-    """
-
     def __init__(self, mcts1, mcts2, game, winReward=1):
         """
-        Input:
-            player 1,2: two functions that takes board as input, return action
-            game: Game object
-            display: a function that takes board as input and prints it (e.g.
-                     display in othello/OthelloGame). Is necessary for verbose
-                     mode.
-
-        see othello/OthelloPlayers.py for an example. See pit.py for pitting
-        human players/other baselines with each other.
+        初始化一个双人竞技场，用于比较两个MCTS玩家的表现。
+        参数:
+            mcts1: 第一个MCTS玩家对象
+            mcts2: 第二个MCTS玩家对象
+            game: 游戏环境对象
+            winReward: 胜利奖励值，默认为1
         """
         self.mcts1 = mcts1
         self.mcts2 = mcts2
-
+        # 定义两个玩家的策略函数，使用MCTS获取最佳动作
         self.player1 = lambda x: np.argmax(mcts1.getActionProb(x, temp=0, step=0))
         self.player2 = lambda x: np.argmax(mcts2.getActionProb(x, temp=0, step=0))
         self.game = game
@@ -35,89 +29,64 @@ class ArenaSingle():
 
     def playGame(self, player, verbose=False):
         """
-        Executes one episode of a game.
-
-        Returns:
-            either
-                winner: player who won the game (1 if player1, -1 if player2)
-            or
-                draw result returned from the game that is neither 1, -1, nor 0.
+        执行一局游戏，直到结束。
+        参数:
+            player: 当前玩家的策略函数
+            verbose: 是否输出详细信息
+        返回:
+            winner: 获胜玩家（1表示player1，-1表示player2）
+            或者返回平局或其他结果
         """
-
-
         if self.game.test_size > 0:
-            board = self.game.getTestBoard()
+            board = self.game.getTestBoard()  # 获取测试棋盘状态
         else:
-            board = self.game.getInitBoard()
+            board = self.game.getInitBoard()  # 获取初始棋盘状态
         it = 0
-
         step = 0
-        while not self.game.isTerminate(board, step):
-            action = player(board)
-            valids = self.game.getValidMoves(board)
+        while not self.game.isTerminate(board, step):  # 检查是否游戏结束
+            action = player(board)  # 玩家选择动作
+            valids = self.game.getValidMoves(board)  # 获取所有合法动作
             if valids[action] == 0:
-                log.error(f'Action {action} is not valid!')
-                log.debug(f'valids = {valids}')
-                assert valids[action] > 0
-            board, _ = self.game.getNextState(board, action)
+                log.error(f'动作 {action} 不合法！')
+                log.debug(f'合法动作列表 = {valids}')
+                assert valids[action] > 0  # 验证动作合法性
+            board, _ = self.game.getNextState(board, action)  # 获取下一个状态
             step += 1
             if verbose:
-                print("Game over: Turn ", str(it), "Result ", str(self.game.getGameEnded(board)))
-        return self.game.getGameEnded(board)
+                print("游戏结束: 回合 ", str(it), "结果 ", str(self.game.getGameEnded(board)))
+        return self.game.getGameEnded(board)  # 返回游戏结果
 
     def playGames(self, num, verbose=False):
-        """
-        Plays num games in which player1 starts num/2 games and player2 starts
-        num/2 games.
-
-        Returns:
-            oneWon: games won by player1
-            twoWon: games won by player2
-        """
-
         oneWon = 0
         twoWon = 0
-
-        self.game.TestReset()
-
+        self.game.TestReset()  # 测试重置
         for _ in tqdm(range(num), desc="Arena.playGames (1)"):
             self.mcts1.reset()
             gameResult = self.playGame(self.player1, verbose=verbose)
             if gameResult == self.winReward:
-                oneWon += 1
-
+                oneWon += 1  # player1胜利计数
         self.game.TestReset()
         for _ in tqdm(range(num), desc="Arena.playGames (2)"):
             self.mcts2.reset()
             gameResult = self.playGame(self.player2, verbose=verbose)
             if gameResult == self.winReward:
-                twoWon += 1
-
+                twoWon += 1  # player2胜利计数
         self.game.TestReset()
-
         return oneWon, twoWon
-    
 
 
+# 测试用竞技场类，用于评估单个玩家在多个问题上的表现
 class ArenaTest():
-    """
-    An Arena class where any 2 agents can be pit against each other.
-    """
-
     def __init__(self, mcts1, game, multi_sol=0, winReward=1):
         """
-        Input:
-            player 1,2: two functions that takes board as input, return action
-            game: Game object
-            display: a function that takes board as input and prints it (e.g.
-                     display in othello/OthelloGame). Is necessary for verbose
-                     mode.
-
-        see othello/OthelloPlayers.py for an example. See pit.py for pitting
-        human players/other baselines with each other.
+        初始化一个用于测试的竞技场。
+        参数:
+            mcts1: 要测试的MCTS玩家
+            game: 游戏环境对象
+            multi_sol: 是否启用多解模式
+            winReward: 胜利奖励值
         """
         self.mcts1 = mcts1
-        
         self.player1 = lambda x: np.argmax(self.mcts1.getActionProb(x, multi_sol, temp=0, step=0))
         self.game = game
         self.winReward = winReward
@@ -125,78 +94,63 @@ class ArenaTest():
 
     def playGame(self, player, verbose=False):
         """
-        Executes one episode of a game.
-
-        Returns:
-            either
-                winner: player who won the game (1 if player1, -1 if player2)
-            or
-                draw result returned from the game that is neither 1, -1, nor 0.
+        执行一局游戏，并记录动作序列。
+        参数:
+            player: 玩家策略函数
+            verbose: 是否输出详细信息
+        返回:
+            problem_state: 初始问题状态
+            game_result: 游戏最终结果
+            actions: 动作序列
         """
-
-
         if self.game.test_size > 0:
             board = self.game.getTestBoard()
         else:
             board = self.game.getInitBoard()
         it = 0
-        problem_state = board
-
+        problem_state = board  # 记录初始状态
         step = 0
-        actions = []
+        actions = []  # 动作序列
         while not self.game.isTerminate(board, step):
             action = player(board)
             valids = self.game.getValidMoves(board)
             if valids[action] == 0:
-                log.error(f'Action {action} is not valid!')
-                log.debug(f'valids = {valids}')
+                log.error(f'动作 {action} 不合法！')
+                log.debug(f'合法动作列表 = {valids}')
                 assert valids[action] > 0
             board, action_in_text = self.game.getNextState(board, action)
             actions.append(action_in_text)
             step += 1
             if verbose:
-                print("Game over: Turn ", str(it), "Result ", str(self.game.getGameEnded(board)))
-        
-        
+                print("游戏结束, ", "结果 ", str(self.game.getGameEnded(board)))
         return problem_state, self.game.getGameEnded(board), actions
 
     def playGames(self, num, multi_times, verbose=False):
         """
-        Plays num games
-
-        Returns:
-            oneWon: games won by player1
+        执行num局游戏，每局多次求解。
+        参数:
+            num: 游戏总局数
+            multi_times: 多次尝试求解的次数
+            verbose: 是否输出详细信息
+        返回:
+            oneWon: 玩家1获胜次数
+            thoughts_record: 游戏过程记录
         """
-
         oneWon = 0
         thoughts_record = []
         self.game.TestReset()
-        
         for i in range(num):
-   
-            print('num %s'%(i+1), 'multi_times %s'%multi_times)
-            self.game.total_test = i+1
+            print('第 %s 局' % (i + 1), '尝试次数 %s' % multi_times)
+            self.game.total_test = i + 1
             self.mcts1.reset()
             problem_state, gameResult, actions = self.playGame(self.player1, verbose=verbose)
             thoughts_record.append([str(problem_state), str(actions), gameResult == self.winReward])
-
             if self.multi_sol:
                 for sol in range(multi_times):
                     selected_ac_seq, res = self.mcts1.inferSinglePlayer(problem_state, step=0, seed=sol)
                     if selected_ac_seq is not None:
                         thoughts_record.append([str(problem_state), str(selected_ac_seq), res == self.winReward])
-
             if gameResult == self.winReward:
                 oneWon += 1
-
         self.game.TestReset()
-
         return oneWon, thoughts_record
-    
-
-
-
-
-
-
-
