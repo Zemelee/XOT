@@ -48,10 +48,6 @@ class XoT_Solver:
         """
         if args.env.lower() == 'game24':
             from .pytorch_game24.NNet import NNetWrapper as nn
-        elif args.env.lower() == 'cube':
-            from .pytorch_cube.NNet import NNetWrapper as nn
-        elif args.env.lower() == 'npuzzle':
-            from .pytorch_npuzzle.NNet import NNetWrapper as nn
         else:
             raise ValueError
         

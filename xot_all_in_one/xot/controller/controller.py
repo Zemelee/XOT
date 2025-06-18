@@ -64,7 +64,7 @@ class Controller:
         config = self.config
         logs = []
         file = self.initial_logs(config)
-        solver = self.initial_solver(config)
+        solver = self.initial_solver(config) # XoT_Solver
 
         for idx in range(config.task.task_start_index, config.task.task_end_index):
             x = self.game.getOneTestBoard(idx)

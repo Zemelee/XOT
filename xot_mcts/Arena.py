@@ -41,7 +41,6 @@ class ArenaSingle():
             board = self.game.getTestBoard()  # 获取测试棋盘状态
         else:
             board = self.game.getInitBoard()  # 获取初始棋盘状态
-        it = 0
         step = 0
         while not self.game.isTerminate(board, step):  # 检查是否游戏结束
             action = player(board)  # 玩家选择动作
@@ -53,7 +52,7 @@ class ArenaSingle():
             board, _ = self.game.getNextState(board, action)  # 获取下一个状态
             step += 1
             if verbose:
-                print("游戏结束: 回合 ", str(it), "结果 ", str(self.game.getGameEnded(board)))
+                print("游戏结束: ", "结果 ", str(self.game.getGameEnded(board)))
         return self.game.getGameEnded(board)  # 返回游戏结果
 
     def playGames(self, num, verbose=False):
@@ -107,22 +106,22 @@ class ArenaTest():
             board = self.game.getTestBoard()
         else:
             board = self.game.getInitBoard()
-        it = 0
+        # it = 0
         problem_state = board  # 记录初始状态
         step = 0
         actions = []  # 动作序列
         while not self.game.isTerminate(board, step):
-            action = player(board)
+            action = player(board) # 选择动作(索引)
             valids = self.game.getValidMoves(board)
             if valids[action] == 0:
                 log.error(f'动作 {action} 不合法！')
-                log.debug(f'合法动作列表 = {valids}')
+                # log.debug(f'合法动作列表 = {valids}')
                 assert valids[action] > 0
             board, action_in_text = self.game.getNextState(board, action)
             actions.append(action_in_text)
             step += 1
-            if verbose:
-                print("游戏结束, ", "结果 ", str(self.game.getGameEnded(board)))
+            if str(self.game.getGameEnded(board)) != "0":
+                print("game over: ", str(self.game.getGameEnded(board)))
         return problem_state, self.game.getGameEnded(board), actions
 
     def playGames(self, num, multi_times, verbose=False):
@@ -140,7 +139,7 @@ class ArenaTest():
         thoughts_record = []
         self.game.TestReset()
         for i in range(num):
-            print('第 %s 局' % (i + 1), '尝试次数 %s' % multi_times)
+            print(f'第 {i+1} 局,尝试次数{multi_times}')
             self.game.total_test = i + 1
             self.mcts1.reset()
             problem_state, gameResult, actions = self.playGame(self.player1, verbose=verbose)

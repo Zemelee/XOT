@@ -42,14 +42,15 @@ class Coach():
         self.curPlayer = 1 # 当前玩家
         episodeStep = 0 # 当前回合步数
         rewards = [0] # 奖励列表，初始为 0
-        # 进行游戏
+        # while:只有4步
         while True:
             # 获取规范化棋盘(双人就翻转，单人使用原棋盘)
             canonicalBoard = self.game.getCanonicalForm(board, self.curPlayer) if self.player == 2 else board
-            temp = int(episodeStep < self.args.tempThreshold) # 早期保留探索性(1) 后期选择 MCTS 中最高概率的动作
+            temp = int(episodeStep < self.args.tempThreshold) # 15前保留探索性(1)，后期选择概率最高的动作
             pi = self.mcts.getActionProb(canonicalBoard, temp=temp, step=episodeStep) # 获取动作概率分布
             sym = self.game.getSymmetries(canonicalBoard, pi) # 合并了下
             for b, p in sym:
+                # [([3,8,5,5], [策略分布], +1)...]
                 trainExamples.append([b, self.curPlayer, p, None])
              # 选择动作
             action = np.random.choice(len(pi), p=pi)
@@ -74,7 +75,7 @@ class Coach():
                 iterationTrainExamples = deque([], maxlen=self.args.maxlenOfQueue)
                 for _ in tqdm(range(self.args.numEps), desc="Self Play"): # 10场自我对弈
                     self.mcts = MCTS(self.game, self.nnet, self.args, self.player)  # reset search tree
-                    iterationTrainExamples += self.executeEpisode() # 最后40个样本: [(abcd)-->res,概率分布,奖励] * 10
+                    iterationTrainExamples += self.executeEpisode() # 一场返回4个样本: [(abcd)-->res,概率分布,奖励] * 10
                 # save the iteration examples to the history 
                 self.trainExamplesHistory.append(iterationTrainExamples)
             if len(self.trainExamplesHistory) > self.args.numItersForTrainExamplesHistory:
@@ -120,6 +121,7 @@ class Coach():
 
 
     def infer(self):
+        os.makedirs('./logs', exist_ok=True)
         # 加载最佳模型
         self.pnet.load_checkpoint(folder=self.args.checkpoint + self.args.env + '/', filename='best.pth.tar')
         pmcts = MCTS(self.game, self.pnet, self.args, self.player)

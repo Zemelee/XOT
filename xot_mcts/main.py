@@ -14,13 +14,13 @@ from utils import *
 def main():
     parser = ArgumentParser("Everything of Thoughts! 🎉")
     parser.add_argument('--env', type=str, default='game24')
-    parser.add_argument('--mode', type=str, default='train')
+    parser.add_argument('--mode', type=str, default='test')
     parser.add_argument('--numIters', type=int, default=3) # Number of iteration.
     parser.add_argument('--numEps', type=int, default=10)  # Number of complete self-play games to simulate during a new iteration.
     parser.add_argument('--updateThreshold', type=float, default=0) # During arena playoff, new neural net will be accepted if threshold or more of games are won.
     parser.add_argument('--maxlenOfQueue', type=int, default=10000) # Number of game examples to train the neural networks.
-    parser.add_argument('--numMCTSSims', type=int, default=100) # Number of games moves for MCTS to simulate.
-    parser.add_argument('--tempThreshold', type=int, default=15) # Temperature threthold
+    parser.add_argument('--numMCTSSims', type=int, default=2000) # MCTS模拟次数.
+    parser.add_argument('--tempThreshold', type=int, default=15) # 温度阈值.
     parser.add_argument('--arenaCompare', type=int, default=100) # Number of games to play during arena play to determine if new net will be accepted.
     parser.add_argument('--cpuct', type=float, default=1)
     parser.add_argument('--winReward', type=float, default=1)
@@ -28,10 +28,10 @@ def main():
     parser.add_argument('--load_model', type=bool, default=False)
     parser.add_argument('--load_folder_file', type=tuple, default=('/dev/models','best.pth.tar'))
     parser.add_argument('--numItersForTrainExamplesHistory', type=int, default=1000)
-    parser.add_argument('--training_env', type=str, default='game24/data/train.csv')
-    parser.add_argument('--test_env', type=str, default='')
-    parser.add_argument('--multi_sol', type=int, default=0)
-    parser.add_argument('--multi_times', type=int, default=500)
+    parser.add_argument('--training_env', type=str, default='')
+    parser.add_argument('--test_env', type=str, default='game24/data/test.csv')
+    parser.add_argument('--multi_sol', type=int, default=1)
+    parser.add_argument('--multi_times', type=int, default=50) # 测试模式下的尝试次数
     args = parser.parse_args()
 
     logging.basicConfig(filename='logs/%s_%s.log'%(args.env, args.mode), filemode='w', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')  
@@ -71,5 +71,4 @@ if __name__ == "__main__":
     main()
 
 # python xot_mcts/main.py --env game24 --mode train --training_env game24/data/train.csv --numMCTSSims 5000 --arenaCompare 100 --numEps 10 --numIters 3
-# python xot_mcts/main.py --env game24 --mode test --test_env game24/data/test.csv  --numMCTSSims 2000 --arenaCompare 137 --multi_sol 0
-# python xot_mcts/main.py --config config/cube/single_sol/cube_single_xot_laststep0_revised0.yaml  
+# python xot_mcts/main.py --env game24 --mode test --test_env game24/data/test.csv  --numMCTSSims 2000 --arenaCompare 100 --multi_sol 0

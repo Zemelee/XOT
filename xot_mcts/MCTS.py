@@ -32,13 +32,16 @@ class MCTS():
     def getActionProb(self, canonicalBoard, multi_sol=0, temp=1, step=0):
         # 运行 MCTS 模拟(100次)
         for i in range(self.args.numMCTSSims):
-            if self.player == 2:
-                self.search(canonicalBoard)
-            elif self.player == 1:
-                self.searchSinglePlayer(canonicalBoard, step=step)
+            self.searchSinglePlayer(canonicalBoard, step=step)
         s = self.game.stringRepresentation(canonicalBoard)
         # 统计36种动作的访问次数
-        counts = [self.Nsa[(s, a)] if (s, a) in self.Nsa else 0 for a in range(self.game.getActionSize())]
+        counts = []
+        for a in range(self.game.getActionSize()):
+            if (s, a) in self.Nsa:
+                count = self.Nsa[(s, a)]
+            else:
+                count = 0
+            counts.append(count)
         # 完全确定性选择
         if temp == 0:
             bestAs = np.array(np.argwhere(counts == np.max(counts))).flatten()
@@ -62,8 +65,8 @@ class MCTS():
             # 分配奖励成功1 / 失败-1 / 未结束0
             self.Es[s] = self.game.getGameEnded(canonicalBoard)
         if terminate:
-            # 终止节点
-            return self.Es[s]
+            return self.Es[s] # +1 或 -1
+        # 被探索过? 是则UCB选最优动作，否则预测策略和价值
         if s not in self.Ps: # 叶节点未探索，没有策略和价值
             # 预测当前状态的策略(动作概率分布)和评估值(-1~1) [先验概率]
             self.Ps[s], v = self.nnet.predict(canonicalBoard)
@@ -71,11 +74,11 @@ class MCTS():
             valids = self.game.getValidMoves(canonicalBoard)
             self.Ps[s] = self.Ps[s] * valids  # 给每个动作：屏蔽无效动作
             sum_Ps_s = np.sum(self.Ps[s])
-            if sum_Ps_s > 0:# 归一化动作概率
+            # 归一化动作概率
+            if sum_Ps_s > 0:
                 self.Ps[s] /= sum_Ps_s
             else:
                 # 如果所有有效动作都被掩码(全都无效)，则让所有有效动作概率相等
-                log.error("所有有效动作均被掩码，正在执行补救措施。")
                 self.Ps[s] = self.Ps[s] + valids
                 self.Ps[s] /= np.sum(self.Ps[s])
             self.Vs[s] = valids # Vs:状态s下的合法动作
@@ -100,7 +103,7 @@ class MCTS():
         # 执行a，递归到新状态，得到价值v
         next_s, _ = self.game.getNextState(canonicalBoard, a)
         v = self.searchSinglePlayer(next_s, step+1) # 递归到新状态
-        # 将价值v沿路径反向传播，更新Q值和访问计数
+        # 走完才会触发反向传播，更新Q值和访问计数
         if (s, a) in self.Qsa:
             # 如果(s,a)有记录: 增量式更新平均值 (现有平均值*访问次数+ 新值) / (访问次数+1)
             self.Qsa[(s, a)] = (self.Nsa[(s, a)] * self.Qsa[(s, a)] + v) / (self.Nsa[(s, a)] + 1)

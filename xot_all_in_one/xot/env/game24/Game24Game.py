@@ -49,7 +49,7 @@ class Game24(Game):
             self.train_size = len(self.train_data)
         if test_dir:
             log.info("Loading Test Environment...")
-            self.test_data = pd.read_csv(test_dir)
+            self.test_data = pd.read_csv("xot_all_in_one/data/game24/game24_test.csv")
             self.test_size = len(self.test_data)
 
     def getInitBoard(self):
