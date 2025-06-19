@@ -1,9 +1,4 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT license.
-
 import os
-import sys
-import time
 
 import numpy as np
 from tqdm import tqdm
@@ -78,13 +73,6 @@ class NNetWrapper(NeuralNet):
                 optimizer.step()
 
     def predict(self, board):
-        """
-        board: np array with board
-        """
-        # timing
-        start = time.time()
-
-        # preparing input
         board = torch.FloatTensor(board.astype(np.float64))
         if args.cuda: board = board.contiguous().cuda()
         board = board.view(self.board_size)
@@ -92,7 +80,6 @@ class NNetWrapper(NeuralNet):
         with torch.no_grad():
             pi, v = self.nnet(board)
 
-        # print('PREDICTION TIME TAKEN : {0:03f}'.format(time.time()-start))
         return torch.exp(pi).data.cpu().numpy()[0], v.data.cpu().numpy()[0]
 
     def loss_pi(self, targets, outputs):
@@ -113,7 +100,6 @@ class NNetWrapper(NeuralNet):
         }, filepath)
 
     def load_checkpoint(self, folder='checkpoint', filename='checkpoint.pth.tar'):
-        # https://github.com/pytorch/examples/blob/master/imagenet/main.py#L98
         filepath = os.path.join(folder, filename)
         if not os.path.exists(filepath):
             print(filepath)

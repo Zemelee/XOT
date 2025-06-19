@@ -2,17 +2,12 @@
 # Licensed under the MIT license.
 
 import re
-import os
 import sympy
-import pandas as pd
 import numpy as np
 
 
 class Game24Parser():
-    """
-    Game24Paser provides the parsing of language model reponses specific to
-    the game24 example.
-    """
+    # Game24Paser提供特定于game24示例的语言模型响应的解析
     def __init__(self):
         pass
 
@@ -125,7 +120,7 @@ class Game24Parser():
         #     return result
     
     def action_to_thoughs(self, actions, x):
-        
+        # [['/', 6, 9], ['+', 0.66, 3], ['+', 3.66, 11]], [3, 6, 9, 11]
         current_number = x.tolist()
         result = []  
         for item in actions:  

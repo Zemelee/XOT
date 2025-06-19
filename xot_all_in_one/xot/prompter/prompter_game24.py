@@ -9,7 +9,7 @@ from .prompts.prompts_game24 import *
 
 class Game24Prompter():
     """
-    Game24Prompter provides the generation of prompts specific to the game24
+    # Game24Prompter给LLM提供特定于game24的提示生成案例
     example for the language models.
     """
     def __init__(self, last_step=True):

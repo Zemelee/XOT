@@ -3,8 +3,6 @@
 
 from argparse import ArgumentParser
 from functools import partial
-import random
-import yaml
 
 from utils import Config, load_config
 from xot import env
@@ -24,7 +22,7 @@ config = Config(load_config(yaml_file))
 
 gpt = partial(chatgpt, temperature=config.gpt.temperature)    
 game = env.Game24(test_dir=config.task.data)
-prompter = Game24Prompter(last_step=config.param.last_step)
+prompter = Game24Prompter(last_step=config.param.last_step) # 0/1
 parser = Game24Parser()
 
 
