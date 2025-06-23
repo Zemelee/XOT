@@ -9,7 +9,7 @@ from scipy.special import softmax
 
 from game24.Game24Game import Game24
 from game24.pytorch.NNet import NNetWrapper as NN
-EPS = 1e-8
+EPS = 1e-4
 
 log = logging.getLogger(__name__)
 
@@ -61,15 +61,15 @@ class MCTS():
         # 递归调用直到找到叶节点,并BP到根节点
         s = self.game.stringRepresentation(canonicalBoard) # 获取当前棋盘
         terminate = self.game.isTerminate(canonicalBoard, step) # step用于跟踪游戏状态
-        if s not in self.Es:
+        if s not in self.Es: # Es:是否在状态s结束
             # 分配奖励成功1 / 失败-1 / 未结束0
             self.Es[s] = self.game.getGameEnded(canonicalBoard)
         if terminate:
             return self.Es[s] # +1 或 -1
         # 被探索过? 是则UCB选最优动作，否则预测策略和价值
         if s not in self.Ps: # 叶节点未探索，没有策略和价值
-            # 预测当前状态的策略(动作概率分布)和评估值(-1~1) [先验概率]
-            self.Ps[s], v = self.nnet.predict(canonicalBoard)
+            # 预测状态s的策略分布和胜率(-1~1) [先验概率]
+            self.Ps[s], v = self.nnet.predict(canonicalBoard) ####### NN预测 ###########
             self.modelCall += 1 # 记录模型调用次数
             valids = self.game.getValidMoves(canonicalBoard)
             self.Ps[s] = self.Ps[s] * valids  # 给每个动作：屏蔽无效动作
@@ -83,7 +83,7 @@ class MCTS():
                 self.Ps[s] /= np.sum(self.Ps[s])
             self.Vs[s] = valids # Vs:状态s下的合法动作
             self.Ns[s] = 0 # Ns:状态s被访问的次数
-            return v
+            return v # 截断搜索，触发父节点的反向传播
         valids = self.Vs[s]
         cur_best = -float('inf')
         best_act = -1
@@ -102,8 +102,9 @@ class MCTS():
         a = best_act
         # 执行a，递归到新状态，得到价值v
         next_s, _ = self.game.getNextState(canonicalBoard, a)
+        # 递归探索子节点，子节点返回的价值 v 通过反向传播回传给父节点
         v = self.searchSinglePlayer(next_s, step+1) # 递归到新状态
-        # 走完才会触发反向传播，更新Q值和访问计数
+        # 到达终止节点或未探索的节点!才会触发反向传播，更新Q值和访问计数 
         if (s, a) in self.Qsa:
             # 如果(s,a)有记录: 增量式更新平均值 (现有平均值*访问次数+ 新值) / (访问次数+1)
             self.Qsa[(s, a)] = (self.Nsa[(s, a)] * self.Qsa[(s, a)] + v) / (self.Nsa[(s, a)] + 1)

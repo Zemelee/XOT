@@ -1,20 +1,14 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT license.
-
 import logging
-import numpy as np
-import coloredlogs
 from argparse import ArgumentParser
 from Coach import Coach
-
 
 from utils import *
 
 
 def main():
-    parser = ArgumentParser("Everything of Thoughts! 🎉")
+    parser = ArgumentParser("XOT!")
     parser.add_argument('--env', type=str, default='game24')
-    parser.add_argument('--mode', type=str, default='test')
+    parser.add_argument('--mode', type=str, default='train') # train or test
     parser.add_argument('--numIters', type=int, default=3) # Number of iteration.
     parser.add_argument('--numEps', type=int, default=10)  # Number of complete self-play games to simulate during a new iteration.
     parser.add_argument('--updateThreshold', type=float, default=0) # During arena playoff, new neural net will be accepted if threshold or more of games are won.
@@ -42,30 +36,27 @@ def main():
         from game24.pytorch.NNet import NNetWrapper as nn
     else:
         raise ValueError
-    logging.info('Loading %s...', Game.__name__)
+    logging.info(f'正在加载 {Game.__name__}...', )
     g = Game(args.training_env, args.test_env) # 加载游戏动作实例，棋盘等
-    logging.info('Loading %s...', nn.__name__)
+    logging.info(f'正在加载 {nn.__name__}...', )
     nnet = nn(g) # 加载辅助网络
     if args.mode.lower() == 'train':
         if args.load_model:
-            logging.info('Loading checkpoint "%s/%s"...', args.load_folder_file)
+            logging.info(f'正在加载检查点 "{args.load_folder_file[0]}/{args.load_folder_file[1]}"...')
             nnet.load_checkpoint(args.load_folder_file[0], args.load_folder_file[1])
         else:
-            logging.warning('Not loading a checkpoint!')
-        logging.info('Loading the Coach...')
+            logging.warning('未加载检查点!')
+        logging.info('正在加载Coach类...')
         c = Coach(g, nnet, args, player=1) # c.mcts.getActionProb(mcts.searchSinglePlayer)
         if args.load_model:
-            logging.info("Loading 'trainExamples' from file...")
+            logging.info("正在从文件中加载trainExamples...")
             c.loadTrainExamples()
-        logging.info('Welcome to play %s, Starting the learning process 🎉' % args.env)
+            logging.info(f'欢迎游玩 {args.env}，正在启动学习过程')
         c.learn()
     elif args.mode.lower() == 'test' and args.checkpoint:
         c = Coach(g, nnet, args, player=1)
-        logging.info('Welcome to play %s, Starting the inference process 🎉' % args.env)
+        logging.info(f'欢迎游玩 {args.env}，正在启动推理过程')
         c.infer()
-    else:
-        logging.info('[ERROR] Please input train or test mode.' % args.env)
-
 
 if __name__ == "__main__":
     main()

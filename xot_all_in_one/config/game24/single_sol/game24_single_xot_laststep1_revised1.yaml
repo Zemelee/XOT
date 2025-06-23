@@ -9,7 +9,7 @@ task:
   task_end_index: 1 
   
 gpt:  
-  backend: gpt-4
+  backend: custom
   temperature: 0.0  
   stop: None    
   

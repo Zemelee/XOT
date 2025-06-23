@@ -62,7 +62,7 @@ class Coach():
             terminate = self.game.isTerminate(board, episodeStep)
             if terminate:
                 sym = self.game.getSymmetries(board, pi)
-                for b, p in sym:
+                for b, p in sym:    
                     trainExamples.append([b, self.curPlayer, p, None])
                 # (canonicalBoard_x, pi_x, v_x)
                 return [(x[0], x[2], sum(rewards[i:])) for i, x in enumerate(trainExamples)]
@@ -70,7 +70,7 @@ class Coach():
     # 通过多个迭代来不断改进NN
     def learn(self):
         for i in range(1, self.args.numIters + 1):
-            logging.info(f'Starting Iter #{i} ...')
+            logging.info(f'迭代次数 #{i} ...')
             if not self.skipFirstSelfPlay or i > 1:
                 iterationTrainExamples = deque([], maxlen=self.args.maxlenOfQueue)
                 for _ in tqdm(range(self.args.numEps), desc="Self Play"): # 10场自我对弈
@@ -79,8 +79,7 @@ class Coach():
                 # save the iteration examples to the history 
                 self.trainExamplesHistory.append(iterationTrainExamples)
             if len(self.trainExamplesHistory) > self.args.numItersForTrainExamplesHistory:
-                logging.warning(
-                    f"Removing the oldest entry in trainExamples. len(trainExamplesHistory) = {len(self.trainExamplesHistory)}")
+                logging.warning(f"trainExamplesHistory 过多: {len(self.trainExamplesHistory)}")
                 self.trainExamplesHistory.pop(0)
             # 备份历史记录到文件
             # 注意：这些样例是使用上一轮模型收集的，因此是 i-1
@@ -98,7 +97,7 @@ class Coach():
             self.nnet.train(trainExamples)
             nmcts = MCTS(self.game, self.nnet, self.args, self.player)
             # 模型评估
-            logging.info('PITTING AGAINST PREVIOUS VERSION')
+            logging.info('竞技评估以前的版本')
             pmcts_modelcall_before = pmcts.getModelCall()
             nmcts_modelcall_before = nmcts.getModelCall()
             arena = ArenaSingle(pmcts, nmcts, self.game, self.args.winReward)
@@ -108,14 +107,13 @@ class Coach():
 
             pmcts_modelcall_avg = round((pmcts_modelcall_after - pmcts_modelcall_before) / self.args.arenaCompare, 2)
             nmcts_modelcall_avg = round((nmcts_modelcall_after - nmcts_modelcall_before) / self.args.arenaCompare, 2)
-
-            logging.info('NEW/PREV WINS : %d / %d, NEW/PREV AVG CALL : %s / %s, ' % (nwins, pwins, nmcts_modelcall_avg, pmcts_modelcall_avg))
+            logging.info(f'新/旧 胜场数：{nwins} / {pwins}，新/旧平均调用次数：{nmcts_modelcall_avg} / {pmcts_modelcall_avg}')
             # 模型选择
             if pwins + nwins == 0 or float(nwins - pwins) / self.args.arenaCompare < self.args.updateThreshold:
-                logging.info('REJECTING NEW MODEL')
+                logging.info('拒绝新模型')
                 self.nnet.load_checkpoint(folder=self.args.checkpoint + self.args.env + '/', filename='temp.pth.tar')
             else:
-                logging.info('ACCEPTING NEW MODEL')
+                logging.info('接受新模型')
                 self.nnet.save_checkpoint(folder=self.args.checkpoint + self.args.env + '/', filename=self.getCheckpointFile(i))
                 self.nnet.save_checkpoint(folder=self.args.checkpoint + self.args.env + '/', filename='best.pth.tar')
 
@@ -125,14 +123,14 @@ class Coach():
         # 加载最佳模型
         self.pnet.load_checkpoint(folder=self.args.checkpoint + self.args.env + '/', filename='best.pth.tar')
         pmcts = MCTS(self.game, self.pnet, self.args, self.player)
-        logging.info('TESTING BEGAIN:')
+        logging.info('测试开始:')
         pmcts_modelcall_before = pmcts.getModelCall()
         arena = ArenaTest(pmcts, self.game, self.multi_sol, self.args.winReward)
         pwins, thoughts_record = arena.playGames(self.args.arenaCompare, self.multi_times, verbose=True)
         pmcts_modelcall_after = pmcts.getModelCall()
         pmcts_modelcall_avg = round((pmcts_modelcall_after - pmcts_modelcall_before) / self.args.arenaCompare, 2)
         thoughts_acc = round(pwins/self.game.test_size, 4) * 100
-        logging.info('TESTING WINS :  %d / %d, THOUGHTS ACC : %d %%, TESTING AVG CALL : %s' % (pwins, self.game.test_size, thoughts_acc, pmcts_modelcall_avg))
+        logging.info(f'测试胜场数：{pwins} / {self.game.test_size}，思考准确率：{thoughts_acc} %，平均调用次数：{pmcts_modelcall_avg}')
         pd_thoughts = pd.DataFrame(data=thoughts_record, columns=['problem_state', 'thoughts', 'acc'])
         pd_thoughts.to_csv('./logs/%s_thoughts.csv'%self.args.env)
 
@@ -152,6 +150,7 @@ class Coach():
         modelFile = os.path.join(self.args.load_folder_file[0], self.args.load_folder_file[1])
         examplesFile = modelFile + ".examples"
         if not os.path.isfile(examplesFile):
+            logging.warning(f'未找到包含trainExamples的文件: "{examplesFile}"')
             logging.warning(f'File "{examplesFile}" with trainExamples not found!')
             r = input("Continue? [y|n]")
             if r != "y":

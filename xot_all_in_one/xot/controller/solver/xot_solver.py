@@ -38,6 +38,7 @@ class XoT_Solver:
     def initial_xot(self, args):
         # 根据参数中指定的游戏环境初始化神经网络和MCTS。        
         nnet = nn(self.game)
+        # 加载博弈数据训练的模型
         nnet.load_checkpoint(folder=self.args.model.checkpoint, filename=self.args.model.filename)
         nmcts = MCTS(self.game, nnet, args)
         c = Coach(self.game, nnet, args)
