@@ -1,7 +1,5 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT license.
-
 import logging
+import json
 import os
 import sys
 from collections import deque
@@ -44,8 +42,8 @@ class Coach():
         rewards = [0] # 奖励列表，初始为 0
         # while:只有4步
         while True:
-            # 获取规范化棋盘(双人就翻转，单人使用原棋盘)
-            canonicalBoard = self.game.getCanonicalForm(board, self.curPlayer) if self.player == 2 else board
+            # 获取规范化棋盘
+            canonicalBoard = board
             temp = int(episodeStep < self.args.tempThreshold) # 15前保留探索性(1)，后期选择概率最高的动作
             pi = self.mcts.getActionProb(canonicalBoard, temp=temp, step=episodeStep) # 获取动作概率分布
             sym = self.game.getSymmetries(canonicalBoard, pi) # 合并了下
@@ -64,8 +62,12 @@ class Coach():
                 sym = self.game.getSymmetries(board, pi)
                 for b, p in sym:    
                     trainExamples.append([b, self.curPlayer, p, None])
-                # (canonicalBoard_x, pi_x, v_x)
-                return [(x[0], x[2], sum(rewards[i:])) for i, x in enumerate(trainExamples)]
+                # [(x[0], x[2], sum(rewards[i:])) for i, x in enumerate(trainExamples)]
+                result = []
+                for i, x in enumerate(trainExamples):
+                    item = (x[0], x[2], sum(rewards[i:]))
+                    result.append(item)
+                return result
 
     # 通过多个迭代来不断改进NN
     def learn(self):
@@ -84,6 +86,7 @@ class Coach():
             # 备份历史记录到文件
             # 注意：这些样例是使用上一轮模型收集的，因此是 i-1
             self.saveTrainExamples(i - 1)
+            # self.saveTrainExamplesReadable(i - 1)
             # 训练前打乱数据
             trainExamples = []
             for e in self.trainExamplesHistory:
@@ -126,6 +129,7 @@ class Coach():
         logging.info('测试开始:')
         pmcts_modelcall_before = pmcts.getModelCall()
         arena = ArenaTest(pmcts, self.game, self.multi_sol, self.args.winReward)
+        # 测试入口
         pwins, thoughts_record = arena.playGames(self.args.arenaCompare, self.multi_times, verbose=True)
         pmcts_modelcall_after = pmcts.getModelCall()
         pmcts_modelcall_avg = round((pmcts_modelcall_after - pmcts_modelcall_before) / self.args.arenaCompare, 2)
@@ -145,7 +149,6 @@ class Coach():
         with open(filename, "wb+") as f:
             Pickler(f).dump(self.trainExamplesHistory)
         f.closed
-
     def loadTrainExamples(self):
         modelFile = os.path.join(self.args.load_folder_file[0], self.args.load_folder_file[1])
         examplesFile = modelFile + ".examples"
