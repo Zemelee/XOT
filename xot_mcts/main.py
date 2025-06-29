@@ -8,7 +8,7 @@ from utils import *
 def main():
     parser = ArgumentParser("XOT!")
     parser.add_argument('--env', type=str, default='game24')
-    parser.add_argument('--numIters', type=int, default=3) # Number of iteration.
+    parser.add_argument('--numIters', type=int, default=3) # 训练次数
     parser.add_argument('--numEps', type=int, default=10)  # Number of complete self-play games to simulate during a new iteration.
     parser.add_argument('--updateThreshold', type=float, default=0) # During arena playoff, new neural net will be accepted if threshold or more of games are won.
     parser.add_argument('--maxlenOfQueue', type=int, default=10000) # Number of game examples to train the neural networks.
@@ -22,10 +22,10 @@ def main():
     parser.add_argument('--load_folder_file', type=tuple, default=('/dev/models','best.pth.tar'))
     parser.add_argument('--numItersForTrainExamplesHistory', type=int, default=1000)
     # TODO !!!!!!!!!!! 测试时需要注释training_env !!!!!!!!!!!
-    parser.add_argument('--mode', type=str, default="test") # train or test
-    parser.add_argument('--training_env', type=str, default='') # game24/data/train.csv
-    parser.add_argument('--test_env', type=str, default='game24/data/test.csv') # game24/data/test.csv
-    parser.add_argument('--multi_sol', type=int, default=1)
+    parser.add_argument('--mode', type=str, default="train") # train or test
+    parser.add_argument('--training_env', type=str, default='game24/data/train.csv') # game24/data/train.csv
+    parser.add_argument('--test_env', type=str, default='') # game24/data/test.csv
+    parser.add_argument('--multi_sol', type=int, default=0)
     parser.add_argument('--multi_times', type=int, default=50) # 测试模式下的尝试次数
     args = parser.parse_args()
 

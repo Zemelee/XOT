@@ -6,7 +6,7 @@ task:
   data: data/game24/game24_test.csv  
   total_game_step: 3  
   task_start_index: 0  
-  task_end_index: 1 
+  task_end_index: 2 
   
 gpt:  
   backend: custom
@@ -32,6 +32,6 @@ xot:
   revise_numMCTSSims: 500  
   
 model:  
-  checkpoint: ./models/game24
+  checkpoint: ./temp/game24
   filename: best.pth.tar
   cpuct: 1

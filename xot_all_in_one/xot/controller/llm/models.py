@@ -1,13 +1,10 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT license.
-
 from openai import OpenAI
 
 completion_tokens = prompt_tokens = 0
 # TODO
-_model = "moonshot-v1-32k"
-_api_key="sk-hUq2Za7lSM89Rjq4hAD69tBa2nSQ479VY623EL6HVsgHYEWW"
-_base_url = "https://api.moonshot.cn/v1"
+_model = ""
+_api_key=""
+_base_url = ""
 
 
 def chatgpt(prompt, instruct=None, model=_model, temperature=0.0, max_tokens=1000, n=1, stop=None) -> list:

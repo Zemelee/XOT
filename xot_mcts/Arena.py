@@ -56,12 +56,9 @@ class ArenaSingle():
         return oneWon, twoWon
 
 
-
-
-
 # 测试用竞技场类，用于评估单个玩家在多个问题上的表现
 class ArenaTest():
-    def __init__(self, mcts1, game, multi_sol=0, winReward=1):
+    def __init__(self, mcts1, game:Game24, multi_sol=0, winReward=1):
         self.mcts1 = mcts1
         self.player1 = lambda x: np.argmax(self.mcts1.getActionProb(x, multi_sol, temp=0, step=0))
         self.game = game
@@ -78,12 +75,9 @@ class ArenaTest():
         step = 0
         actions = []  # 动作序列
         while not self.game.isTerminate(board, step):
-            action = player(board) # 选择动作(索引)
+            action = player(board) # 根据策略选择概率最高的动作索引
             valids = self.game.getValidMoves(board)
-            if valids[action] == 0:
-                log.error(f'动作 {action} 不合法！')
-                # log.debug(f'合法动作列表 = {valids}')
-                assert valids[action] > 0
+            assert valids[action] > 0
             board, action_in_text = self.game.getNextState(board, action)
             actions.append(action_in_text)
             step += 1
@@ -92,6 +86,7 @@ class ArenaTest():
         return problem_state, self.game.getGameEnded(board), actions
 
     def playGames(self, num, multi_times, verbose=False):
+        # 执行num次游戏
         oneWon = 0
         thoughts_record = []
         self.game.TestReset()
@@ -99,7 +94,7 @@ class ArenaTest():
             print(f'第 {i+1}/{num} 局, ', end=" ")
             self.game.total_test = i + 1
             self.mcts1.reset()
-            # 初始状态，游戏结果，动作列表
+            # 初始状态，游戏结果，动作列表 self.player1即nn预测动作概率分布的方法
             problem_state, gameResult, actions = self.playGame(self.player1, verbose=verbose)
             thoughts_record.append([str(problem_state), str(actions), gameResult == self.winReward])
             if self.multi_sol:

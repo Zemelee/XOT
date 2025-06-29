@@ -57,7 +57,7 @@ class Controller:
         solver = XoT_Solver(config, self.gpt, self.game, self.prompter, self.parser) # XoT_Solver
         # 遍历任务索引
         for idx in range(config.task.task_start_index, config.task.task_end_index):
-            x = self.game.getOneTestBoard(idx)
+            x = self.game.getOneTestBoard(idx) # 按序获取测试数据
             print(f'[{idx+1-config.task.task_start_index}/{config.task.task_end_index-config.task.task_start_index}] Problem: {x}')
             # solve
             revised_flag = None
@@ -66,7 +66,7 @@ class Controller:
             if config.multi_solution and config.method not in ['tot', 'got']:
                 infos = [self.parser.test_output_multi(x, y, revised_flag) for y in ys]
             else:
-                infos = [self.parser.test_output(x, y, revised_flag) for y in ys]
+                infos = [self.parser.test_output(x, y, revised_flag) for y in ys] # [{'r': 0, 'revised': 1}]
             # 仅针对xot方法
             info.update({'idx': idx, 'ys': ys, 'infos': infos, 'model_call': model_call_list[0], 'model_call_phase1': model_call_list[1], 'model_call_phase2': model_call_list[2]})
             # log

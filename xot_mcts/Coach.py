@@ -36,7 +36,7 @@ class Coach():
         # 模拟一个完整的游戏过程，在每一步使用 MCTS 获取动作概率分布，并记录下来作为训练数据
         # 最后根据游戏结果给这些样本分配目标值（胜负），供后续训练神经网络使用
         trainExamples = [] # 存储训练样本
-        board = self.game.getInitBoard() # [a, b, c, d]
+        board = self.game.getInitBoard() # 随机生成初始状态
         self.curPlayer = 1 # 当前玩家
         episodeStep = 0 # 当前回合步数
         rewards = [0] # 奖励列表，初始为 0
@@ -48,11 +48,11 @@ class Coach():
             pi = self.mcts.getActionProb(canonicalBoard, temp=temp, step=episodeStep) # 获取动作概率分布
             sym = self.game.getSymmetries(canonicalBoard, pi) # 合并了下
             for b, p in sym:
-                # [([3,8,5,5], [策略分布], +1)...]
+                # append: [(Board, 1/动作描述, 策略分布)...]
                 trainExamples.append([b, self.curPlayer, p, None])
              # 选择动作
             action = np.random.choice(len(pi), p=pi)
-            board, self.curPlayer = self.game.getNextState(board, action)
+            board, self.curPlayer = self.game.getNextState(board, action) # 下一个状态、动作描述
             r = self.game.getGameEnded(board)
             rewards.append(r)
             episodeStep += 1
@@ -71,11 +71,11 @@ class Coach():
 
     # 通过多个迭代来不断改进NN
     def learn(self):
-        for i in range(1, self.args.numIters + 1):
+        for i in range(1, self.args.numIters + 1): # self.args.numIters + 1
             logging.info(f'迭代次数 #{i} ...')
             if not self.skipFirstSelfPlay or i > 1:
                 iterationTrainExamples = deque([], maxlen=self.args.maxlenOfQueue)
-                for _ in tqdm(range(self.args.numEps), desc="Self Play"): # 10场自我对弈
+                for _ in tqdm(range(2), desc="自我对弈"): # self.args.numEps 10场自我对弈
                     self.mcts = MCTS(self.game, self.nnet, self.args, self.player)  # reset search tree
                     iterationTrainExamples += self.executeEpisode() # 一场返回4个样本: [(abcd)-->res,概率分布,奖励] * 10
                 # save the iteration examples to the history 
@@ -86,7 +86,7 @@ class Coach():
             # 备份历史记录到文件
             # 注意：这些样例是使用上一轮模型收集的，因此是 i-1
             self.saveTrainExamples(i - 1)
-            # self.saveTrainExamplesReadable(i - 1)
+            self.save_deque_to_json(iterationTrainExamples, "test.json")
             # 训练前打乱数据
             trainExamples = []
             for e in self.trainExamplesHistory:
@@ -129,12 +129,12 @@ class Coach():
         logging.info('测试开始:')
         pmcts_modelcall_before = pmcts.getModelCall()
         arena = ArenaTest(pmcts, self.game, self.multi_sol, self.args.winReward)
-        # 测试入口
+        # 模拟多次游戏流程
         pwins, thoughts_record = arena.playGames(self.args.arenaCompare, self.multi_times, verbose=True)
         pmcts_modelcall_after = pmcts.getModelCall()
         pmcts_modelcall_avg = round((pmcts_modelcall_after - pmcts_modelcall_before) / self.args.arenaCompare, 2)
-        thoughts_acc = round(pwins/self.game.test_size, 4) * 100
-        logging.info(f'测试胜场数：{pwins} / {self.game.test_size}，思考准确率：{thoughts_acc} %，平均调用次数：{pmcts_modelcall_avg}')
+        thoughts_acc = round(pwins/self.args.arenaCompare, 4) * 100
+        logging.info(f'测试胜场数：{pwins} / {self.args.arenaCompare}，思考准确率：{thoughts_acc} %，平均调用次数：{pmcts_modelcall_avg}')
         pd_thoughts = pd.DataFrame(data=thoughts_record, columns=['problem_state', 'thoughts', 'acc'])
         pd_thoughts.to_csv('./logs/%s_thoughts.csv'%self.args.env)
 
@@ -149,6 +149,33 @@ class Coach():
         with open(filename, "wb+") as f:
             Pickler(f).dump(self.trainExamplesHistory)
         f.closed
+    
+    def save_deque_to_json(self, data, filename):
+        def serialize_item(item):
+            if isinstance(item, np.ndarray):
+                return [round(float(x), 2) for x in item]
+            elif isinstance(item, float):
+                return round(item, 2)
+            elif isinstance(item, (list, tuple)):
+                return [serialize_item(subitem) for subitem in item]
+            elif isinstance(item, np.integer):
+                return int(item)
+            elif isinstance(item, np.floating):
+                return round(float(item), 2)
+            elif isinstance(item, int):
+                return item
+            else:
+                return str(item)
+        # 处理整个 deque 数据
+        converted_data = []
+        for entry in data:
+            converted_entry = tuple(serialize_item(e) for e in entry)
+            converted_data.append(converted_entry)
+        # 保存为 JSON
+        with open(filename, "w", encoding="utf-8") as f:
+            json_str = json.dumps(converted_data, ensure_ascii=False, indent=2)
+            f.write(json_str)
+
     def loadTrainExamples(self):
         modelFile = os.path.join(self.args.load_folder_file[0], self.args.load_folder_file[1])
         examplesFile = modelFile + ".examples"
